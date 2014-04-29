@@ -1,5 +1,6 @@
 from PyQt4 import QtCore, QtGui
 import subprocess
+import os
 
 settings={'AudioMode':'local','ScaleToScreen':'False',}
 mediaLocation='/home'
@@ -32,14 +33,15 @@ class MediaPlayer(QtGui.QWidget):
 		self.volumeBarPressed=[]
 		self.volumeBarDepressed=[]
 		self.volumeFunctions=[]
-		numButtons=len(iconPics)
+		self.numButtons=len(iconPics)
+		self.labelHeight=dimensions[1]
 		self.iconWidth=dimensions[2]
 		self.iconHeight=dimensions[3]
 		self.progressBarHeight=dimensions[5]
 		self.volumeBarWidth=dimensions[6]
-		self.spacing=(dimensions[0]-numButtons*dimensions[2]-self.volumeBarWidth*10)/(numButtons+1)
+		self.spacing=(dimensions[0]-self.numButtons*dimensions[2]-self.volumeBarWidth*10)/(self.numButtons+1)
 		self.gap=(dimensions[1]-dimensions[3])/2
-		for i in range(0,numButtons):
+		for i in range(0,self.numButtons):
 			self.buttons.append(QtGui.QLabel(self.label))
 			self.buttons.append(QtGui.QLabel(self.label))
 			self.buttons[i*2].setPixmap(self.buttonDepressedPic)
@@ -90,7 +92,40 @@ class MediaPlayer(QtGui.QWidget):
 		self.volumeBars[3].mouseReleaseEvent=lambda e: self.setVolume(4)
 		self.volumeBars[4].mouseReleaseEvent=lambda e: self.setVolume(5)
 		self.progressBar.mouseReleaseEvent=self.setSeek
-		
+	
+	def relocate(self,x,y,width,height):
+		self.playerWidth=width
+		self.playerHeight=height-self.labelHeight
+		self.label.resize(self.playerWidth,self.labelHeight)
+		self.label.move(0,self.playerHeight)
+		bgPic=QtGui.QPixmap(QtCore.QString('mediaplayer/panel.png')).scaled(QtCore.QSize(self.playerWidth,self.labelHeight))
+		self.label.setPixmap(bgPic)
+		self.player.resize(self.playerWidth,self.playerHeight)
+		self.spacing=(self.playerWidth-self.numButtons*self.iconWidth-self.volumeBarWidth*10)/(self.numButtons+1)
+		self.gap=(self.labelHeight-self.iconHeight)/2
+		for i in range(0,self.numButtons):
+			self.buttons[i*2].move(i*self.iconWidth+(i+1)*self.spacing,self.gap+self.progressBarHeight)
+			self.buttons[i*2+1].move(i*self.iconWidth+(i+1)*self.spacing,self.gap+self.progressBarHeight)
+		for i in range(0,5):
+			self.volumeBars[i].move(self.playerWidth+(2*i-10)*self.volumeBarWidth,
+					self.gap+self.progressBarHeight+self.iconHeight-self.iconHeight/6*(i+1))
+		self.progressBar.resize(self.playerWidth-20-self.iconWidth*4,self.progressBarHeight)
+		self.progressBar.move(10,self.gap/2)
+		self.progressCircle.move(10,self.gap/2-self.progressBarHeight/2)
+		self.progressText.move(self.playerWidth-10-self.iconWidth*4,self.gap/2-self.progressBarHeight/2)
+		self.move(x,y)
+		if self.process is not None and self.process.poll() is None:
+			if settings['ScaleToScreen']=='True':
+				position=[str(self.geometry().left()),str(self.geometry().top()),str(self.geometry().left()+self.playerWidth),str(self.geometry().top()+self.playerHeight)]
+			else:
+				newWidth=min(self.playerWidth,self.videoWidth)
+				newHeight=min(self.playerHeight,self.videoHeight)
+				position=[str(self.geometry().left()+(self.playerWidth-newWidth)/2),
+							str(self.geometry().top()+(self.playerHeight-newHeight)/2),
+							str(self.geometry().left()+(self.playerWidth-newWidth)/2+newWidth),
+							str(self.geometry().top()+(self.playerHeight-newHeight)/2+newHeight)]
+			subprocess.call([os.path.abspath('dbuscontrol.sh'),'setvideopos',position[0],position[1],position[2],position[3]])
+
 
 	def chooseFile(self,e):
 		self.buttons[0].setPixmap(self.buttonPressedPic)
@@ -144,9 +179,11 @@ class MediaPlayer(QtGui.QWidget):
 
 	def updateClock(self):
 		if self.process is not None and self.process.poll() is None:
-			self.timeElapsed+=1
-			#progress=10+(self.playerWidth-20-self.iconWidth*4-self.progressBarHeight*2)*self.timeElapsed/self.duration
-			progress=10+self.progressBar.size().width()*self.timeElapsed/self.duration
+			timepos = subprocess.check_output([os.path.abspath('dbuscontrol.sh'),'pos'])
+			if timepos=='':
+				return
+			self.timeElapsed = (int(timepos.strip().split(' ')[1])/1000000)
+			progress=10+(self.progressBar.size().width()-self.progressCircle.size().width())*self.timeElapsed/self.duration
 			self.progressCircle.move(progress,self.gap/2-self.progressBarHeight/2)
 			self.progressText.setText(str(self.getClockString(self.timeElapsed))+
 				str(self.progressText.text())[8:])
@@ -236,30 +273,11 @@ class MediaPlayer(QtGui.QWidget):
 
 	def setSeek(self,e):
 		if self.process is not None and self.process.poll() is None:
-			oldTime=self.timeElapsed
-			self.timeElapsed=e.pos().x()*self.duration/self.progressBar.size().width()
-			diff = (self.timeElapsed-oldTime)/30 #only increments of 30s
-			#if diff==0: #mininum increment
-				#diff=1 if self.timeElapsed>oldTime else -1
-			self.timeElapsed=oldTime+diff*30
-			progress=10+self.progressBar.size().width()*self.timeElapsed/self.duration
-			self.progressCircle.move(progress,self.gap/2-self.progressBarHeight/2)
-			self.progressText.setText(str(self.getClockString(self.timeElapsed))+
-				str(self.progressText.text())[8:])
-			self.app.processEvents()
-			roughSeek='seekUp'
-			if self.timeElapsed<oldTime:
-				roughSeek='seekDown'
-			cmds=[]
-			for i in range(abs(oldTime-self.timeElapsed)/600):
-				cmds.append(lambda: self.controlPlayer(roughSeek))
-			fineSeek='seekRight'
-			if self.timeElapsed<oldTime:
-				fineSeek='seekLeft'
-			for i in range(abs(oldTime-self.timeElapsed)%600/30):
-				cmds.append(lambda: self.controlPlayer(fineSeek))
-			for i in range(len(cmds)):
-				QtCore.QTimer.singleShot(i*50,cmds[i])
+			t = e.pos().x()*self.duration/(self.progressBar.size().width()-self.progressCircle.size().width())
+			if t>0 and t<self.duration:
+				self.timeElapsed = t
+				subprocess.call([os.path.abspath('dbuscontrol.sh'),'setposition',str(self.timeElapsed*1000000)])
+
 
 	def closeEvent(self,e):
 		self.saveSettings()
@@ -271,9 +289,9 @@ class MediaPlayer(QtGui.QWidget):
 
 if __name__=='__main__':
 	app = QtGui.QApplication([])
-	width=800
+	width=500
 	height=100
-	playerheight=800
+	playerheight=500
 	iconSize=50
 	progressBarHeight=10
 	volumeBarWidth=15
@@ -292,5 +310,6 @@ if __name__=='__main__':
 		(buttonDepressedPic,buttonPressedPic,(newPic,playPic,pausePic,stopPic,settingsPic),
 			bgPic,progressBarPic,progressCirclePic),
 	)
+	mp.relocate(0,0,500,500)
 	mp.show()
 	app.exec_()
