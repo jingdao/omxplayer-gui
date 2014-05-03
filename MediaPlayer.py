@@ -6,8 +6,8 @@ settings={'AudioMode':'local','ScaleToScreen':'False',}
 mediaLocation='/home'
 
 class MediaPlayer(QtGui.QWidget):
-	def __init__(self,app,dimensions,pixmaps):
-		QtGui.QWidget.__init__(self)
+	def __init__(self,app,parent,dimensions,pixmaps):
+		QtGui.QWidget.__init__(self,parent)
 		self.app=app
 		self.playerWidth=dimensions[0]
 		self.playerHeight=dimensions[4]
@@ -94,6 +94,7 @@ class MediaPlayer(QtGui.QWidget):
 		self.progressBar.mouseReleaseEvent=self.setSeek
 	
 	def relocate(self,x,y,width,height):
+		print('relocate to '+str(x)+' '+str(y)+' '+str(width)+' '+str(height))
 		self.playerWidth=width
 		self.playerHeight=height-self.labelHeight
 		self.label.resize(self.playerWidth,self.labelHeight)
@@ -111,6 +112,8 @@ class MediaPlayer(QtGui.QWidget):
 					self.gap+self.progressBarHeight+self.iconHeight-self.iconHeight/6*(i+1))
 		self.progressBar.resize(self.playerWidth-20-self.iconWidth*4,self.progressBarHeight)
 		self.progressBar.move(10,self.gap/2)
+		progressBarPic=QtGui.QPixmap(QtCore.QString('mediaplayer/depressed.png')).scaled(QtCore.QSize(self.playerWidth-20-self.iconWidth*4,self.progressBarHeight))
+		self.progressBar.setPixmap(progressBarPic)
 		self.progressCircle.move(10,self.gap/2-self.progressBarHeight/2)
 		self.progressText.move(self.playerWidth-10-self.iconWidth*4,self.gap/2-self.progressBarHeight/2)
 		self.move(x,y)
@@ -141,7 +144,9 @@ class MediaPlayer(QtGui.QWidget):
 		self.buttons[6].setPixmap(self.buttonDepressedPic)
 		self.app.processEvents()
 		mediaLocation=self.file
-		s=subprocess.check_output(['/usr/bin/omxplayer','-i',self.file],stderr=subprocess.STDOUT)
+		p=subprocess.Popen(['/usr/bin/omxplayer','-i',self.file],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+		s=p.communicate('')[1]
+		
 		for line in s.split('\n'):
 			l=line.lstrip()
 			if l.startswith('Duration: '):
@@ -172,6 +177,7 @@ class MediaPlayer(QtGui.QWidget):
 		oldVolume=self.volume
 		self.volume=3
 		self.setVolume(oldVolume)
+		
 
 	def controlPlayer(self,type):
 		if self.process is not None and self.process.poll() is None:
@@ -286,9 +292,7 @@ class MediaPlayer(QtGui.QWidget):
 			self.process.terminate()
 		e.accept()
 
-
-if __name__=='__main__':
-	app = QtGui.QApplication([])
+def main(app,parent):
 	width=500
 	height=100
 	playerheight=500
@@ -306,10 +310,16 @@ if __name__=='__main__':
 	progressBarPic=QtGui.QPixmap(QtCore.QString('mediaplayer/depressed.png')).scaled(QtCore.QSize(width-20-iconSize*2,progressBarHeight))
 	progressCirclePic=QtGui.QPixmap(QtCore.QString('mediaplayer/circle.png')).scaled(QtCore.QSize(progressBarHeight*2,progressBarHeight*2))
 	mp = MediaPlayer(
-		app, (width,height,iconSize,iconSize,playerheight,progressBarHeight,volumeBarWidth),
+		app, parent,(width,height,iconSize,iconSize,playerheight,progressBarHeight,volumeBarWidth),
 		(buttonDepressedPic,buttonPressedPic,(newPic,playPic,pausePic,stopPic,settingsPic),
 			bgPic,progressBarPic,progressCirclePic),
 	)
+	print('created MediaPlayer')
+	return mp
+
+if __name__=='__main__':
+	app = QtGui.QApplication([])
+	mp = main(app,None)
 	mp.relocate(0,0,500,500)
 	mp.show()
 	app.exec_()

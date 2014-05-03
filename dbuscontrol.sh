@@ -10,17 +10,23 @@ export DBUS_SESSION_BUS_PID=`cat $OMXPLAYER_DBUS_PID`
 [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && { echo "Must have DBUS_SESSION_BUS_ADDRESS" >&2; exit 1; }
 
 case $1 in
+pos)
+	echo `dbus-send --print-reply=literal --reply-timeout=100 --session --dest=org.mpris.MediaPlayer2.omxplayer /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Position`
+	;;
 status)
 	duration=`dbus-send --print-reply=literal --session --reply-timeout=500 --dest=org.mpris.MediaPlayer2.omxplayer /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Duration`
 	[ $? -ne 0 ] && exit 1
+	echo $duration
 	duration="$(awk '{print $2}' <<< "$duration")"
 
 	position=`dbus-send --print-reply=literal --session --reply-timeout=500 --dest=org.mpris.MediaPlayer2.omxplayer /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Position`
 	[ $? -ne 0 ] && exit 1
+	echo $position
 	position="$(awk '{print $2}' <<< "$position")"
 
 	playstatus=`dbus-send --print-reply=literal --session --reply-timeout=500 --dest=org.mpris.MediaPlayer2.omxplayer /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.PlaybackStatus`
 	[ $? -ne 0 ] && exit 1
+	echo $playstatus
 	playstatus="$(sed 's/^ *//;s/ *$//;' <<< "$playstatus")"
 
 	paused="true"
