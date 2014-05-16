@@ -6,26 +6,35 @@ settings={'AudioMode':'local','ScaleToScreen':'False',}
 mediaLocation='/home'
 
 class MediaPlayer(QtGui.QWidget):
-	def __init__(self,app,parent,dimensions,pixmaps):
+	def __init__(self,app,parent):
 		QtGui.QWidget.__init__(self,parent)
 		self.app=app
-		self.playerWidth=dimensions[0]
-		self.playerHeight=dimensions[4]
+		self.playerWidth=500
+		self.labelHeight=100
+		self.playerHeight=500
+		self.iconWidth=50
+		self.iconHeight=50
+		self.progressBarHeight=10
+		self.volumeBarWidth=15
+		self.bgPic=QtGui.QPixmap(QtCore.QString('mediaplayer/panel.png')).scaled(QtCore.QSize(self.playerWidth,self.playerHeight))
+		self.buttonDepressedPic=QtGui.QPixmap(QtCore.QString('mediaplayer/depressed.png')).scaled(QtCore.QSize(self.iconWidth,self.iconHeight))
+		self.buttonPressedPic=QtGui.QPixmap(QtCore.QString('mediaplayer/pressed.png')).scaled(QtCore.QSize(self.iconWidth,self.iconHeight))
+		self.iconPics=[QtGui.QPixmap(QtCore.QString('mediaplayer/new.png')).scaled(QtCore.QSize(self.iconWidth,self.iconHeight)),
+			QtGui.QPixmap(QtCore.QString('mediaplayer/play.png')).scaled(QtCore.QSize(self.iconWidth,self.iconHeight)),
+			QtGui.QPixmap(QtCore.QString('mediaplayer/pause.png')).scaled(QtCore.QSize(self.iconWidth,self.iconHeight)),
+			QtGui.QPixmap(QtCore.QString('mediaplayer/stop.png')).scaled(QtCore.QSize(self.iconWidth,self.iconHeight)),
+			QtGui.QPixmap(QtCore.QString('mediaplayer/settings.png')).scaled(QtCore.QSize(self.iconWidth,self.iconHeight)),]
+		self.progressBarPic=QtGui.QPixmap(QtCore.QString('mediaplayer/depressed.png')).scaled(QtCore.QSize(self.playerWidth-20-self.iconWidth*2,self.progressBarHeight))
+		self.progressCirclePic=QtGui.QPixmap(QtCore.QString('mediaplayer/circle.png')).scaled(QtCore.QSize(self.progressBarHeight*2,self.progressBarHeight*2))
 		self.setWindowTitle('OMXPlayer')
 		self.process=None
 		self.volume=3
-		self.buttonDepressedPic=pixmaps[0]
-		self.buttonPressedPic=pixmaps[1]
-		iconPics=pixmaps[2]
-		bgPic=pixmaps[3]
-		progressBarPic=pixmaps[4]
-		progressCirclePic=pixmaps[5]
 		self.label=QtGui.QLabel(self)
-		self.label.setPixmap(bgPic)
-		self.label.resize(dimensions[0],dimensions[1])
-		self.label.move(0,dimensions[4])
+		self.label.setPixmap(self.bgPic)
+		self.label.resize(self.playerWidth,self.labelHeight)
+		self.label.move(0,self.playerHeight)
 		self.player=QtGui.QLabel(self)
-		self.player.resize(dimensions[0],dimensions[4])
+		self.player.resize(self.playerWidth,self.playerHeight)
 		self.player.setStyleSheet('background-color: black')
 		self.player.move(0,0)
 		self.buttons=[]
@@ -33,19 +42,14 @@ class MediaPlayer(QtGui.QWidget):
 		self.volumeBarPressed=[]
 		self.volumeBarDepressed=[]
 		self.volumeFunctions=[]
-		self.numButtons=len(iconPics)
-		self.labelHeight=dimensions[1]
-		self.iconWidth=dimensions[2]
-		self.iconHeight=dimensions[3]
-		self.progressBarHeight=dimensions[5]
-		self.volumeBarWidth=dimensions[6]
-		self.spacing=(dimensions[0]-self.numButtons*dimensions[2]-self.volumeBarWidth*10)/(self.numButtons+1)
-		self.gap=(dimensions[1]-dimensions[3])/2
+		self.numButtons=len(self.iconPics)
+		self.spacing=(self.playerWidth-self.numButtons*self.iconWidth-self.volumeBarWidth*10)/(self.numButtons+1)
+		self.gap=(self.labelHeight-self.iconHeight)/2
 		for i in range(0,self.numButtons):
 			self.buttons.append(QtGui.QLabel(self.label))
 			self.buttons.append(QtGui.QLabel(self.label))
 			self.buttons[i*2].setPixmap(self.buttonDepressedPic)
-			self.buttons[i*2+1].setPixmap(iconPics[i])
+			self.buttons[i*2+1].setPixmap(self.iconPics[i])
 			self.buttons[i*2].resize(self.iconWidth,self.iconHeight)
 			self.buttons[i*2+1].resize(self.iconWidth,self.iconHeight)
 			self.buttons[i*2].move(i*self.iconWidth+(i+1)*self.spacing,self.gap+self.progressBarHeight)
@@ -63,11 +67,11 @@ class MediaPlayer(QtGui.QWidget):
 			self.volumeBars[i].move(self.playerWidth+(2*i-10)*self.volumeBarWidth,
 					self.gap+self.progressBarHeight+self.iconHeight-volumeBarHeight)
 		self.progressBar=QtGui.QLabel(self.label)
-		self.progressBar.setPixmap(progressBarPic)
+		self.progressBar.setPixmap(self.progressBarPic)
 		self.progressBar.resize(self.playerWidth-20-self.iconWidth*4,self.progressBarHeight)
 		self.progressBar.move(10,self.gap/2)
 		self.progressCircle=QtGui.QLabel(self.label)
-		self.progressCircle.setPixmap(progressCirclePic)
+		self.progressCircle.setPixmap(self.progressCirclePic)
 		self.progressCircle.resize(self.progressBarHeight*2,self.progressBarHeight*2)
 		self.progressCircle.move(10,self.gap/2-self.progressBarHeight/2)
 		self.progressText=QtGui.QLabel(self.label)
@@ -93,8 +97,10 @@ class MediaPlayer(QtGui.QWidget):
 		self.volumeBars[4].mouseReleaseEvent=lambda e: self.setVolume(5)
 		self.progressBar.mouseReleaseEvent=self.setSeek
 	
-	def relocate(self,x,y,width,height):
-		print('relocate to '+str(x)+' '+str(y)+' '+str(width)+' '+str(height))
+	def resizeEvent(self,e):
+		#print('relocate to '+str(x)+' '+str(y)+' '+str(width)+' '+str(height))
+		width=e.size().width()
+		height=e.size().height()
 		self.playerWidth=width
 		self.playerHeight=height-self.labelHeight
 		self.label.resize(self.playerWidth,self.labelHeight)
@@ -116,7 +122,6 @@ class MediaPlayer(QtGui.QWidget):
 		self.progressBar.setPixmap(progressBarPic)
 		self.progressCircle.move(10,self.gap/2-self.progressBarHeight/2)
 		self.progressText.move(self.playerWidth-10-self.iconWidth*4,self.gap/2-self.progressBarHeight/2)
-		self.move(x,y)
 		if self.process is not None and self.process.poll() is None:
 			if settings['ScaleToScreen']=='True':
 				position=[str(self.geometry().left()),str(self.geometry().top()),str(self.geometry().left()+self.playerWidth),str(self.geometry().top()+self.playerHeight)]
@@ -292,34 +297,10 @@ class MediaPlayer(QtGui.QWidget):
 			self.process.terminate()
 		e.accept()
 
-def main(app,parent):
-	width=500
-	height=100
-	playerheight=500
-	iconSize=50
-	progressBarHeight=10
-	volumeBarWidth=15
-	bgPic=QtGui.QPixmap(QtCore.QString('mediaplayer/panel.png')).scaled(QtCore.QSize(width,height))
-	buttonDepressedPic=QtGui.QPixmap(QtCore.QString('mediaplayer/depressed.png')).scaled(QtCore.QSize(iconSize,iconSize))
-	buttonPressedPic=QtGui.QPixmap(QtCore.QString('mediaplayer/pressed.png')).scaled(QtCore.QSize(iconSize,iconSize))
-	newPic=QtGui.QPixmap(QtCore.QString('mediaplayer/new.png')).scaled(QtCore.QSize(iconSize,iconSize))
-	playPic=QtGui.QPixmap(QtCore.QString('mediaplayer/play.png')).scaled(QtCore.QSize(iconSize,iconSize))
-	pausePic=QtGui.QPixmap(QtCore.QString('mediaplayer/pause.png')).scaled(QtCore.QSize(iconSize,iconSize))
-	stopPic=QtGui.QPixmap(QtCore.QString('mediaplayer/stop.png')).scaled(QtCore.QSize(iconSize,iconSize))
-	settingsPic=QtGui.QPixmap(QtCore.QString('mediaplayer/settings.png')).scaled(QtCore.QSize(iconSize,iconSize))
-	progressBarPic=QtGui.QPixmap(QtCore.QString('mediaplayer/depressed.png')).scaled(QtCore.QSize(width-20-iconSize*2,progressBarHeight))
-	progressCirclePic=QtGui.QPixmap(QtCore.QString('mediaplayer/circle.png')).scaled(QtCore.QSize(progressBarHeight*2,progressBarHeight*2))
-	mp = MediaPlayer(
-		app, parent,(width,height,iconSize,iconSize,playerheight,progressBarHeight,volumeBarWidth),
-		(buttonDepressedPic,buttonPressedPic,(newPic,playPic,pausePic,stopPic,settingsPic),
-			bgPic,progressBarPic,progressCirclePic),
-	)
-	print('created MediaPlayer')
-	return mp
-
 if __name__=='__main__':
 	app = QtGui.QApplication([])
-	mp = main(app,None)
-	mp.relocate(0,0,500,500)
+	mp = MediaPlayer(app,None)
+	mp.move(0,0)
+	mp.resize(500,500)
 	mp.show()
 	app.exec_()

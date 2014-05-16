@@ -6,6 +6,15 @@ PyQt4 GUI for OMXPlayer (Raspberry Pi)
 	Usage:
 		python MediaPlayer.py
 
+	Embedding in PyQt apps:
+		
+		from MediaPlayer import MediaPlayer
+		mp=MediaPlayer(app,parent)
+		mp.move(x,y)
+		mp.resize(width,height)
+		mp.show()
+	
+
 Dependencies
 ------------
 
